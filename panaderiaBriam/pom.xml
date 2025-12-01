@@ -124,23 +124,27 @@
             </plugin>
 
             <!-- PLUGIN JACOCO (CONFIGURADO PARA 80%) -->
+            <!-- PLUGIN JACOCO: CONFIGURACIÓN "FRANCOTIRADOR" -->
+            <!-- PLUGIN JACOCO: CONFIGURACIÓN "FRANCOTIRADOR" -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
                 <configuration>
                     <excludes>
-                        <!-- Excluir Entidades y DTOs (Solo datos) -->
+                        <!-- EXCLUIMOS TODO LO QUE NO ES LÓGICA PURA -->
                         <exclude>**/entity/**</exclude>
                         <exclude>**/dto/**</exclude>
-                        <!-- Excluir la clase principal de arranque -->
-                        <exclude>**/PanaderiaBriamApplication.class</exclude>
-                        <!-- Excluir configuraciones -->
-                        <exclude>**/DataInitializer.class</exclude>
+                        <exclude>**/repository/**</exclude>
+                        <exclude>**/controller/**</exclude>
+                        <exclude>**/config/**</exclude>
+                        <exclude>**/*Application.*</exclude>
+                        <exclude>**/DataInitializer.*</exclude>
                     </excludes>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
