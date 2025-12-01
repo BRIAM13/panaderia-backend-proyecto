@@ -43,4 +43,21 @@ class PedidoServiceTest {
 
         System.out.println("Resultado del Test : El cálculo de 3 bolsas x 3.00 fue: " + resultado.getMontoTotal());
     }
+    @Test
+    void testCalculoPrecioConCantidadAlta() {
+        // Simulamos un pedido grande (100 bolsas)
+        Pedido pedidoGrande = new Pedido();
+        pedidoGrande.setCantidadBolsas(100);
+
+        // Simulamos que el repositorio devuelve el mismo objeto
+        Mockito.when(pedidoRepository.save(any(Pedido.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        // Forzamos el cálculo
+        pedidoGrande.calcularTotales();
+        Pedido resultado = pedidoService.registrarPedido(pedidoGrande);
+
+        // Verificamos: 100 * 3.00 = 300.00
+        Assertions.assertEquals(new java.math.BigDecimal("300.00"), resultado.getMontoTotal());
+        System.out.println("✅ TEST GRANDE APROBADO: 100 bolsas = " + resultado.getMontoTotal());
+    }
 }
