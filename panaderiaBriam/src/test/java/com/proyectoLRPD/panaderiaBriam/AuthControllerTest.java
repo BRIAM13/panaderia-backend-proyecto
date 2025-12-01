@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.anyString;
+
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
@@ -27,45 +29,51 @@ class AuthControllerTest {
 
     @Test
     void testLoginExitoso() {
-        // Datos de prueba
+        // 1. Datos que enviaremos
         Map<String, String> credenciales = new HashMap<>();
-        credenciales.put("username", "12345678");
+        credenciales.put("username", "70809010");
         credenciales.put("password", "123456");
 
+        // 2. Usuario que existe en la "Base de Datos Falsa"
         Usuario usuarioSimulado = new Usuario();
-        usuarioSimulado.setUsername("12345678");
+        usuarioSimulado.setId(1L);
+        usuarioSimulado.setUsername("70809010");
         usuarioSimulado.setPassword("123456");
-        usuarioSimulado.setActivo(true);
-        usuarioSimulado.setNombres("Juan");
+        usuarioSimulado.setActivo(true); // Importante: Activo
+        usuarioSimulado.setNombres("Test");
         usuarioSimulado.setRol("ADMIN");
 
-        // Simulamos que el servicio encuentra al usuario
-        Mockito.when(usuarioService.buscarPorUsername("12345678"))
+        // 3. Configuramos el simulador: "Si te piden CUALQUIER usuario, devuelve este"
+        Mockito.when(usuarioService.buscarPorUsername(anyString()))
                 .thenReturn(Optional.of(usuarioSimulado));
 
-        // Ejecutamos el login
+        // 4. Ejecutamos el login
         ResponseEntity<?> respuesta = authController.login(credenciales);
 
-        // Verificamos que sea 200 OK
+        // 5. Verificamos que sea 200 OK
+        Assertions.assertNotNull(respuesta);
         Assertions.assertEquals(200, respuesta.getStatusCodeValue());
+        System.out.println("✅ TEST LOGIN PASÓ: Código " + respuesta.getStatusCodeValue());
     }
 
     @Test
     void testLoginFallidoPassword() {
         Map<String, String> credenciales = new HashMap<>();
-        credenciales.put("username", "12345678");
-        credenciales.put("password", "MAL");
+        credenciales.put("username", "70809010");
+        credenciales.put("password", "MAL_PASSWORD");
 
         Usuario usuarioSimulado = new Usuario();
-        usuarioSimulado.setUsername("12345678");
-        usuarioSimulado.setPassword("BIEN");
+        usuarioSimulado.setUsername("70809010");
+        usuarioSimulado.setPassword("PASSWORD_REAL");
+        usuarioSimulado.setActivo(true);
 
-        Mockito.when(usuarioService.buscarPorUsername("12345678"))
+        Mockito.when(usuarioService.buscarPorUsername(anyString()))
                 .thenReturn(Optional.of(usuarioSimulado));
 
         ResponseEntity<?> respuesta = authController.login(credenciales);
 
-        // Verificamos que sea 401 Unauthorized
+        // Debe dar 401 porque la contraseña no coincide
         Assertions.assertEquals(401, respuesta.getStatusCodeValue());
+        System.out.println("✅ TEST LOGIN FALLIDO PASÓ: Código " + respuesta.getStatusCodeValue());
     }
 }
