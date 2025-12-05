@@ -1,11 +1,14 @@
-# 1. Usamos una imagen con Maven para construir el proyecto
-FROM maven:3.8.5-openjdk-17 AS build
+# 1. Usamos una imagen Maven moderna para construir
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY . .
 RUN mvn clean package -DskipTests
 
-# 2. Usamos una imagen ligera de Java para ejecutarlo
-FROM openjdk:17-jdk-slim
+# 2. Usamos una imagen Java ligera y actual para ejecutar
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
+# Copiamos el JAR generado en la etapa anterior
 COPY --from=build /app/target/panaderiaBriam-0.0.1-SNAPSHOT.jar app.jar
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
