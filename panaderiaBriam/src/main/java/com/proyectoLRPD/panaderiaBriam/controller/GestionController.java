@@ -4,7 +4,7 @@ import com.proyectoLRPD.panaderiaBriam.dto.PedidoRequest;
 import com.proyectoLRPD.panaderiaBriam.entity.Cliente;
 import com.proyectoLRPD.panaderiaBriam.entity.Pedido;
 import com.proyectoLRPD.panaderiaBriam.entity.Usuario;
-import com.proyectoLRPD.panaderiaBriam.repository.UsuarioRepository;
+import com.proyectoLRPD.panaderiaBriam.repository.ClienteRepository;
 import com.proyectoLRPD.panaderiaBriam.service.ClienteService;
 import com.proyectoLRPD.panaderiaBriam.service.PedidoService;
 import com.proyectoLRPD.panaderiaBriam.service.UsuarioService;
@@ -35,15 +35,16 @@ public class GestionController {
     private UsuarioService usuarioService;
 
     @Autowired
-    private UsuarioRepository usuarioRepository;
+    private ClienteRepository clienteRepository; // Para el ordenamiento directo
 
     // ==========================================
-    // 1. GESTIÓN DE CLIENTES
+    // GESTIÓN DE CLIENTES
     // ==========================================
 
     @GetMapping("/clientes")
     public List<Cliente> listarClientes() {
-        return clienteService.listarTodos();
+        // CAMBIO: Usamos el método que ordena alfabéticamente
+        return clienteRepository.findAllByOrderByNombreNegocioAsc();
     }
 
     @PostMapping("/clientes")
@@ -74,35 +75,40 @@ public class GestionController {
     }
 
     // ==========================================
-    // 2. GESTIÓN DE PEDIDOS (VENTAS)
+    // GESTIÓN DE PEDIDOS (VENTAS)
     // ==========================================
 
     @PostMapping("/pedidos")
     public Pedido registrarPedido(@RequestBody PedidoRequest request) {
         Pedido pedido = new Pedido();
 
-        // Cliente
         Cliente cliente = new Cliente();
         cliente.setId(request.getClienteId());
         pedido.setCliente(cliente);
 
-        // Datos básicos
         pedido.setCantidadBolsas(request.getCantidadBolsas());
         pedido.setFechaPedido(LocalDate.parse(request.getFechaPedido()));
 
-        // Hora de Entrega (Opcional)
         if (request.getHoraEntrega() != null && !request.getHoraEntrega().isEmpty()) {
             String horaStr = request.getHoraEntrega().length() == 5 ? request.getHoraEntrega() + ":00" : request.getHoraEntrega();
             pedido.setHoraEntrega(LocalTime.parse(horaStr));
         }
 
-        // Precio dinámico
-        if (request.getPrecioActual() != null) {
-            pedido.setPrecioUnitario(request.getPrecioActual());
+        // === LÓGICA DE PEDIDO ESPECIAL ===
+        if (request.getMontoTotalManual() != null) {
+            // Si viene monto manual, lo usamos directo y ponemos precio unitario en 0
+            pedido.setMontoTotal(request.getMontoTotalManual());
+            pedido.setPrecioUnitario(BigDecimal.ZERO);
+        } else {
+            // Si es normal, usamos el precio del celular
+            if (request.getPrecioActual() != null) {
+                pedido.setPrecioUnitario(request.getPrecioActual());
+            }
+            // El total se calculará solo en la entidad
         }
+        // =================================
 
-        pedido.setEntregado(false); // Por defecto
-
+        pedido.setEntregado(false);
         return pedidoService.registrarPedido(pedido);
     }
 
@@ -112,17 +118,20 @@ public class GestionController {
             Pedido pedido = pedidoService.obtenerPorId(id);
             pedido.setCantidadBolsas(request.getCantidadBolsas());
 
-            // Actualizar hora si viene
             if (request.getHoraEntrega() != null && !request.getHoraEntrega().isEmpty()) {
                 String horaStr = request.getHoraEntrega().length() == 5 ? request.getHoraEntrega() + ":00" : request.getHoraEntrega();
                 pedido.setHoraEntrega(LocalTime.parse(horaStr));
             }
 
-            // Recalcular total
-            BigDecimal nuevoTotal = pedido.getPrecioUnitario().multiply(new BigDecimal(pedido.getCantidadBolsas()));
-            pedido.setMontoTotal(nuevoTotal);
+            // Recalculamos total (Lógica simple para editar)
+            if(pedido.getPrecioUnitario().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal nuevoTotal = pedido.getPrecioUnitario().multiply(new BigDecimal(pedido.getCantidadBolsas()));
+                pedido.setMontoTotal(nuevoTotal);
+            }
+            // Si era precio especial (0), no recalculamos, mantenemos el monto original o tendrías que enviar el nuevo monto manual
 
-            return ResponseEntity.ok(pedidoService.registrarPedido(pedido));
+            Pedido actualizado = pedidoService.registrarPedido(pedido);
+            return ResponseEntity.ok(actualizado);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -132,9 +141,9 @@ public class GestionController {
     public ResponseEntity<?> eliminarPedido(@PathVariable Long id) {
         try {
             pedidoService.eliminarPedido(id);
-            return ResponseEntity.ok(Map.of("mensaje", "Eliminado"));
+            return ResponseEntity.ok(Map.of("mensaje", "Pedido eliminado correctamente"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Error al eliminar"));
+            return ResponseEntity.badRequest().body(Map.of("error", "No se pudo eliminar"));
         }
     }
 
@@ -143,14 +152,13 @@ public class GestionController {
         return pedidoService.listarPorFecha(fecha);
     }
 
-    // Nuevo: Traer todo lo pendiente de entrega (Ruta Activa)
     @GetMapping("/pedidos/pendientes")
     public List<Pedido> obtenerRutaActiva() {
         return pedidoService.obtenerPendientesDeEntrega();
     }
 
     // ==========================================
-    // 3. ENTREGAS Y COBRANZAS
+    // COBRANZAS Y ENTREGAS
     // ==========================================
 
     @PutMapping("/pedidos/{id}/entregar")
@@ -166,14 +174,13 @@ public class GestionController {
     }
 
     @PutMapping("/pedidos/{id}/pagar")
-    public ResponseEntity<?> pagarPedido(@PathVariable Long id, @RequestParam(required = false) String usuario) {
+    public ResponseEntity<?> pagarPedido(@PathVariable Long id, @RequestParam String usuario) {
         try {
             Pedido p = pedidoService.obtenerPorId(id);
             p.setEstadoPago(Pedido.EstadoPago.PAGADO);
             p.setEntregado(true);
             p.setFechaPago(LocalDateTime.now());
-            if(usuario != null) p.setUsuarioCobro(usuario); // Auditoría
-
+            p.setUsuarioCobro(usuario);
             pedidoService.registrarPedido(p);
             return ResponseEntity.ok(p);
         } catch (RuntimeException e) {
@@ -187,12 +194,12 @@ public class GestionController {
     }
 
     // ==========================================
-    // 4. GESTIÓN DE USUARIOS (ADMIN)
+    // USUARIOS
     // ==========================================
 
     @GetMapping("/usuarios")
     public List<Usuario> listarUsuarios() {
-        return usuarioRepository.findAllByOrderByUsernameAsc();
+        return usuarioService.listarUsuariosOrdenados(); // Asegúrate de tener este método en Service o usa repository directo
     }
 
     @PostMapping("/usuarios")
@@ -202,16 +209,6 @@ public class GestionController {
 
     @PutMapping("/usuarios/{id}")
     public ResponseEntity<?> editarUsuario(@PathVariable Long id, @RequestBody Usuario usuarioEdit) {
-        return usuarioRepository.findById(id).map(u -> {
-            u.setNombres(usuarioEdit.getNombres());
-            u.setApellidos(usuarioEdit.getApellidos());
-            u.setRol(usuarioEdit.getRol());
-            u.setActivo(usuarioEdit.getActivo());
-            if(usuarioEdit.getPassword() != null && !usuarioEdit.getPassword().isEmpty()){
-                u.setPassword(usuarioEdit.getPassword());
-            }
-            usuarioRepository.save(u);
-            return ResponseEntity.ok(u);
-        }).orElse(ResponseEntity.notFound().build());
+        return usuarioService.editarUsuario(id, usuarioEdit);
     }
 }

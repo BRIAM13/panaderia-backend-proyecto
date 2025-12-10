@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime; // Importamos LocalTime
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "pedidos")
@@ -21,22 +21,13 @@ public class Pedido {
     private Cliente cliente;
 
     @Column(nullable = false)
-    private LocalDate fechaPedido; // Fecha para el calendario (YYYY-MM-DD)
+    private LocalDate fechaPedido;
 
     @Column(name = "hora_registro")
-    private LocalTime horaRegistro; // HORA automática de sistema
+    private LocalTime horaRegistro;
 
-    // === AQUÍ ESTÁ LA VARIABLE QUE FALTABA ===
     @Column(name = "hora_entrega")
-    private LocalTime horaEntrega; // HORA elegida por el usuario
-
-    // ... otros campos ...
-
-    @Column(name = "entregado")
-    private Boolean entregado = false; // Por defecto no entregado
-
-// ... getters y setters ...
-    // =========================================
+    private LocalTime horaEntrega;
 
     @Column(nullable = false)
     private Integer cantidadBolsas;
@@ -52,33 +43,35 @@ public class Pedido {
     private EstadoPago estadoPago;
 
     private LocalDateTime fechaPago;
+    private Boolean entregado = false;
 
     @Column(name = "usuario_cobro")
-    private String usuarioCobro; // El nombre del usuario que dio click a "Cobrar"
+    private String usuarioCobro;
 
     // LÓGICA AUTOMÁTICA
     @PrePersist
     public void calcularTotales() {
-        // 1. Hora de REGISTRO (Auditoría): Esta SÍ es automática siempre
         if (this.horaRegistro == null) {
             this.horaRegistro = LocalTime.now();
         }
 
-        // 2. Hora de ENTREGA: LA DEJAMOS QUIETA.
-        // Si es null, se queda null. Ya no forzamos LocalTime.now().
+        // Si no mandas hora de entrega, por defecto se queda nula (o ponemos now si prefieres)
+        // if (this.horaEntrega == null) { this.horaEntrega = LocalTime.now(); }
 
-        // 3. Precios y Totales
-        if (this.precioUnitario == null) {
-            this.precioUnitario = new BigDecimal("3.00");
+        // SOLO CALCULAMOS SI EL TOTAL ES NULO (Para respetar precios manuales)
+        if (this.montoTotal == null) {
+            if (this.precioUnitario == null) {
+                this.precioUnitario = new BigDecimal("3.00");
+            }
+            if (this.cantidadBolsas != null) {
+                this.montoTotal = this.precioUnitario.multiply(new BigDecimal(this.cantidadBolsas));
+            }
         }
-        if (this.cantidadBolsas != null) {
-            this.montoTotal = this.precioUnitario.multiply(new BigDecimal(this.cantidadBolsas));
-        }
+
         if (this.estadoPago == null) {
             this.estadoPago = EstadoPago.PENDIENTE;
         }
     }
-
 
     public enum EstadoPago {
         PENDIENTE,
