@@ -13,15 +13,27 @@ public class ClienteService {
     private ClienteRepository clienteRepository;
 
     public List<Cliente> listarTodos() {
-        return clienteRepository.findAll();
+        return clienteRepository.findAllByOrderByNombreNegocioAsc();
     }
 
     public Cliente guardarCliente(Cliente cliente) {
         return clienteRepository.save(cliente);
     }
+
     public Cliente buscarPorId(Long id) {
-        return clienteRepository.findById(id).orElse(null);
+        return clienteRepository.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
     }
+
+    // ESTE ES EL MÉTODO QUE TE DABA ERROR
+    public Cliente editarCliente(Long id, Cliente c) {
+        Cliente base = buscarPorId(id);
+        base.setNombreNegocio(c.getNombreNegocio());
+        base.setDireccion(c.getDireccion());
+        base.setTelefono(c.getTelefono());
+        return clienteRepository.save(base);
+    }
+
+    // ESTE TAMBIÉN ES NECESARIO
     public void eliminarCliente(Long id) {
         clienteRepository.deleteById(id);
     }

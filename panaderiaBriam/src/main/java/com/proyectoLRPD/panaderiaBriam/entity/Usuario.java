@@ -1,5 +1,4 @@
 package com.proyectoLRPD.panaderiaBriam.entity;
-
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -7,19 +6,13 @@ import lombok.Data;
 @Table(name = "usuarios")
 @Data
 public class Usuario {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(unique = true, nullable = false)
-    private String username; // DNI
-
-    @Column(nullable = false)
+    private String username;
     private String password;
-
     private String nombres;
     private String apellidos;
-    private String rol; // ADMIN, REPARTIDOR, ETC.
-
-    private Boolean activo = true; // Para banear/deshabilitar acceso
+    private String rol;
+    private Boolean activo = true;
 }
