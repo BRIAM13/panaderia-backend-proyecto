@@ -35,10 +35,13 @@ public class Pedido {
     public void prePersist() {
         if (this.horaRegistro == null) this.horaRegistro = LocalTime.now();
         if (this.estadoPago == null) this.estadoPago = EstadoPago.PENDIENTE;
+        if (this.entregado == null) this.entregado = false;
+
+        // SOLO calculamos si el montoTotal es nulo (es decir, es un pedido estándar)
         if (this.montoTotal == null && this.cantidadBolsas != null) {
             BigDecimal precio = (this.precioUnitario != null) ? this.precioUnitario : new BigDecimal("3.00");
             this.montoTotal = precio.multiply(new BigDecimal(this.cantidadBolsas));
-            if (this.precioUnitario == null) this.precioUnitario = precio;
+            this.precioUnitario = precio;
         }
     }
 }

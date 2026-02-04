@@ -50,19 +50,27 @@ public class GestionController {
         Cliente c = new Cliente();
         c.setId(req.getClienteId());
         p.setCliente(c);
-        p.setCantidadBolsas(req.getCantidadBolsas());
+
+        p.setCantidadBolsas(req.getCantidadBolsas()); // Aquí viajan "panes" si es especial
         p.setFechaPedido(LocalDate.parse(req.getFechaPedido()));
 
         if (req.getHoraEntrega() != null && !req.getHoraEntrega().isEmpty()) {
             p.setHoraEntrega(LocalTime.parse(req.getHoraEntrega()));
         }
 
-        if (req.getMontoTotalManual() != null) {
+        // --- LÓGICA DE PEDIDO ESPECIAL CORREGIDA ---
+        if (req.getMontoTotalManual() != null && req.getMontoTotalManual().doubleValue() > 0) {
+            // Caso Especial: El usuario puso el precio a mano
             p.setMontoTotal(req.getMontoTotalManual());
+            // Calculamos un precio unitario ficticio (Total / Cantidad) para no dejarlo en nulo
+            p.setPrecioUnitario(req.getMontoTotalManual().divide(new java.math.BigDecimal(req.getCantidadBolsas()), 2, java.math.RoundingMode.HALF_UP));
         } else {
+            // Caso Estándar: Usa el precio por bolsa configurado
             p.setPrecioUnitario(req.getPrecioActual());
+            // El montoTotal se calculará en la entidad Pedido (@PrePersist)
         }
 
+        p.setEntregado(false);
         return pedidoService.registrarPedido(p);
     }
 
