@@ -22,9 +22,9 @@ public class GestionController {
     @Autowired private PedidoService pedidoService;
     @Autowired private UsuarioService usuarioService;
 
-    // ==========================================
+    // =========================================
     // GESTIÓN DE CLIENTES
-    // ==========================================
+    // =========================================
     @GetMapping("/clientes")
     public List<Cliente> listC() { return clienteService.listarTodos(); }
 
